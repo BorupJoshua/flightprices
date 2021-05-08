@@ -65,6 +65,7 @@ def page_scrape(iataFROM, iataTO):
     # Create the webdriver and start the chromdriver exe
     driver = webdriver.Chrome(executable_path=chromedriver_path)
 
+
     # Open the webpage
     driver.get(url)
 
