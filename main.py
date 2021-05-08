@@ -6,6 +6,11 @@ from datetime import timedelta
 from datetime import date
 import pandas as pd
 import smtplib
+import csv
+import os.path
+import requests
+from discord import Webhook, RequestsWebhookAdapter
+
 
 
 # Configuration Options
@@ -13,7 +18,6 @@ import smtplib
 # List of airports you are willing to depart from
 departing_airports = {
     "SGF",
-    "BKG",
     "COU",
     "MCI"
 }
@@ -37,6 +41,12 @@ chromedriver_path = 'chromedriver.exe'
 # Number of ADULT travelers, AS A STRING!
 num_adults = '8'
 
+# CSV Data File Name
+csv_file_name = 'historical_data.csv'
+
+# Discord Webhook File
+webhook_file_path = 'webhook.txt'
+
 # Kayak's url stuff, the first should not change, but the 2nd (kayak_closer) should be copied after the 2nd date in the url.
 # TO DO: Create a system to automatically know number of travelers (in my case it's 8)
 kayak_before_destination = 'https://www.kayak.com/flights/'
@@ -49,6 +59,7 @@ kayak_closer = '-flexible-calendar-10to14/'+num_adults+'adults?sort=bestflight_a
 def page_scrape(iataFROM, iataTO):
 
     print('Starting to scrape the results for '+iataFROM+' to '+iataTO)
+
     # Get the date object of today + days to look at (293 is default)
     future_date = date.today() + timedelta(days=days_to_look_ahead)
 
@@ -72,7 +83,7 @@ def page_scrape(iataFROM, iataTO):
     
     print('Opening webpage, waiting to load')
     # Wait for the page to fully populate the results
-    sleep(50)
+    sleep(20)
 
     # Find the element that has the specific class that represents the lowest price, then grab the price value
     day_container = driver.find_element_by_class_name(lowest_price_class_string)
@@ -84,7 +95,7 @@ def page_scrape(iataFROM, iataTO):
 
     # Filter out non numeric numbers from the container text
     numeric_filter = filter(str.isdigit, price)
-    price_cleaned = "".join(numeric_filter)
+    price_cleaned = int("".join(numeric_filter))
 
     print(price_cleaned)
 
@@ -92,14 +103,75 @@ def page_scrape(iataFROM, iataTO):
     return price_cleaned
 
 
+# Load Stack from CSV if exists
+# Create Empty Stack if it doesnt
+def load_stack():
+    if not (os.path.exists(csv_file_name)):
+        open(csv_file_name, 'a+')
+        return []
+
+    data = []
+
+    # Open up file and put data into a stack
+    with open(csv_file_name) as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            if len(row) == 0:
+                continue
+            data.append(tuple(row))
+
+    # Return the stack of tuples
+    return data
+
+# Saves the stack
+def save_stack(data):
+
+    # Opens the file for writing
+    with open(csv_file_name, 'w', newline='') as file:
+
+        # Write every tuple in the data provided
+        csv_out = csv.writer(file)
+        for row in data:
+            csv_out.writerow(row)
+        
+
+#Main Driver Function
+def main():
+    data = load_stack()
+
+    lowest_price = 99999999
+    flight_pair = ''
+
+    for incoming in arrival_airports:
+        for outgoing in departing_airports:
+            print("Testing "+incoming+" and "+outgoing)
+
+            price = page_scrape(outgoing,incoming)
+
+            if (price < lowest_price):
+                lowest_price = price
+                flight_pair = outgoing+'-'+incoming
     
+    newTuple = (lowest_price,flight_pair)
 
-sleep(2)
-
-page_scrape('SGF','NRT')
-
-sleep(2)
-
-page_scrape('COU','NRT')
+    data.append(newTuple)
 
 
+    save_stack(data)
+
+
+    # Discord integration
+    webhook_secret_file = open(webhook_file_path, 'r')
+
+    webhook_secret = webhook_secret_file.read()
+
+    message = "LOWEST PRICE CURRENTLY: $"+str(lowest_price)+", DEPARTING FROM: "+outgoing+", ARRIVING AT: "+incoming
+
+    webhook = Webhook.from_url(webhook_secret, adapter=RequestsWebhookAdapter())
+    webhook.send(message)
+
+
+
+
+if __name__ == '__main__':
+    main()
