@@ -1,6 +1,9 @@
 from time import sleep, strftime
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from datetime import timedelta
 from datetime import date
 from datetime import datetime
@@ -88,7 +91,15 @@ def page_scrape(iataFROM, iataTO):
 
     # Wait for the page to fully populate the results
     # TO DO: Actually make a holding function to wait until results are fully loaded, python loves to hang on sleep
-    sleep(20)
+    element = WebDriverWait(driver, 90).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "weekRow"))
+    )
+
+    elements = driver.find_elements_by_class_name("weekRow")
+
+    while (len(elements) <= 4):
+        elements = driver.find_elements_by_class_name("weekRow")
+
 
     # Find the element that has the specific class that represents the lowest price, then grab the price value
     day_container = driver.find_element_by_class_name(lowest_price_class_string)
@@ -122,10 +133,16 @@ def load_stack():
 
     # Open up file and put data into a stack
     with open(csv_file_name) as file:
+
         csv_reader = csv.reader(file)
+
         for row in csv_reader:
+
+            # Ignore the row if it's empty
             if len(row) == 0:
                 continue
+
+            # Ensure the first slot is a integer
             row[0] = int(row[0])
             data.append(tuple(row))
 
@@ -169,12 +186,17 @@ def return_lowest_in_timeframe(timeframe, dataset):
 
 #Main Driver Function
 def main():
+    # ================= Scrape Prep ================= 
+    # Prepare variables before we start scraping data
+
     # Load data from file
     data = load_stack()
 
     # Create variables with dummy values
     lowest_price = 99999999
     flight_pair = ''
+
+    # ================= Page Scraping ================= 
 
     # For every incoming and outgoing pair, scrape the page and compare prices
     for incoming in arrival_airports:
@@ -190,6 +212,8 @@ def main():
                 lowest_price = price
                 flight_pair = outgoing+'-'+incoming
     
+    # ================= Data Evaluation ================= 
+
     # Create a new tuple of the lowest price and the flight pair string
     lowest_tuple_today = (lowest_price,flight_pair)
     lowest_today_str = str(lowest_tuple_today[0])+" ("+lowest_tuple_today[1]+")"
@@ -215,7 +239,9 @@ def main():
     lowest_tuple_weekly = return_lowest_in_timeframe(7,data)
     lowest_weekly_str = str(lowest_tuple_weekly[0])+" ("+lowest_tuple_weekly[1]+")"
 
-    # Discord integration
+    # ================= Discord integration ================= 
+    # You can remove this below and swap out a different way to show the results
+    # For my case its through my personal Discord server. 
 
     # Open webhook file (secret!)
     webhook_secret_file = open(webhook_file_path, 'r')
@@ -235,6 +261,8 @@ def main():
     embed.add_field(name="Lowest Price Overall", value=lowest_overall_str, inline=True)
     embed.set_footer(text="Updated: "+datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
     webhook.send(embed=embed)
+
+    #================= ================= ================= 
 
 
 # End Main
