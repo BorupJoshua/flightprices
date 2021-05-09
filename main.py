@@ -32,6 +32,12 @@ arrival_airports = {
 # Recommended 293 since the main carriers don't post their prices atleast 330 days in advance, then give 30 days for the month view and an additional 7 days as a buffer.
 days_to_look_ahead = 293
 
+# Number of days to keep data
+days_to_keep_data = 90
+
+# Frequency per day to run the script
+number_of_iterations = 4
+
 # The specific class on the website that represents the lowest fare
 lowest_price_class_string = 'und0'
 
@@ -76,13 +82,13 @@ def page_scrape(iataFROM, iataTO):
     # Create the webdriver and start the chromdriver exe
     driver = webdriver.Chrome(executable_path=chromedriver_path)
 
-
     # Open the webpage
     driver.get(url)
-
     
     print('Opening webpage, waiting to load')
+
     # Wait for the page to fully populate the results
+    # TO DO: Actually make a holding function to wait until results are fully loaded, python loves to hang on sleep
     sleep(20)
 
     # Find the element that has the specific class that represents the lowest price, then grab the price value
@@ -135,37 +141,71 @@ def save_stack(data):
             csv_out.writerow(row)
         
 
+def clean_stack(timeframe, data):
+    
+    while (data.size() > (timeframe * number_of_iterations)):
+        data.pop(0)
+
+    return data
+
+def return_lowest_in_timeframe(timeframe, dataset):
+
+    new_dataset = clean_stack(timeframe,data)
+
+    return min(data, key = lambda t; t[0])
+
+
 #Main Driver Function
 def main():
+    # Load data from file
     data = load_stack()
 
+    # Create variables with dummy values
     lowest_price = 99999999
     flight_pair = ''
 
+    # For every incoming and outgoing pair, scrape the page and compare prices
     for incoming in arrival_airports:
         for outgoing in departing_airports:
+
             print("Testing "+incoming+" and "+outgoing)
 
+            # Scrape the page
             price = page_scrape(outgoing,incoming)
 
+            # If the price is lower than our current lowest price, that's the new lowest price
             if (price < lowest_price):
                 lowest_price = price
                 flight_pair = outgoing+'-'+incoming
     
-    newTuple = (lowest_price,flight_pair)
+    # Create a new tuple of the lowest price and the flight pair string
+    lowest_tuple_today = (lowest_price,flight_pair)
 
-    data.append(newTuple)
+    # Add it to the data stack
+    data.append(lowest_tuple_today)
 
+    # Create new data stack that adheres how many data entires we want
+    new_data = clean_stack(days_to_keep_data,data)
 
-    save_stack(data)
+    # Save the new stack to storage
+    save_stack(new_data)
 
+    # Grab the lowest price overall
+    lowest_tuple_overall = return_lowest_in_timeframe(days_to_keep_data,data)
+
+    # Grab the lowest monthly
+    lowest_tuple_monthly = return_lowest_in_timeframe(30,data)
+
+    # Grab the lowest weekly
+    lowest_tuple_weekly = return_lowest_in_timeframe(7,data)
+=
 
     # Discord integration
     webhook_secret_file = open(webhook_file_path, 'r')
 
     webhook_secret = webhook_secret_file.read()
 
-    message = "LOWEST PRICE CURRENTLY: $"+str(lowest_price)+", DEPARTING FROM: "+outgoing+", ARRIVING AT: "+incoming
+    message = "LOWEST PRICE CURRENTLY: $"+str(lowest_price)+", AIRPORT PAIR: "+flight_pair
 
     webhook = Webhook.from_url(webhook_secret, adapter=RequestsWebhookAdapter())
     webhook.send(message)
