@@ -1,3 +1,4 @@
 chromedriver.exe
 webhook.txt
 historical_data.csv
+*.exe
