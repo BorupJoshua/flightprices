@@ -19,21 +19,9 @@ import operator
 
 # Configuration Options
 
-# List of airports you are willing to depart from
-departing_airports = {
-    "SGF",
-    "COU",
-    "MCI"
-}
-
+#Airports you want to test, add a comma between every pair
 departing_airports_str = "SGF, COU, MCI"
 destination_airports_str = "NRT, HND"
-
-# Lists of airports you would like to depart back home from
-arrival_airports = {
-    "NRT",
-    "HND"
-}
 
 # Number of days to look in the future
 # Recommended 293 since the main carriers don't post their prices atleast 330 days in advance, then give 30 days for the month view and an additional 7 days as a buffer.
@@ -48,13 +36,10 @@ number_of_iterations = 4
 # Number of over night stays, as a string
 nights = "10-14"
 
-# The specific class on the website that represents the lowest fare
-lowest_price_class_string = 'und0'
-
 # Chromedriver's path
 chromedriver_path = 'chromedriver.exe'
 
-# Number of ADULT travelers, AS A STRING!
+# Number of ADULT travelers
 num_adults = 8
 
 # CSV Data File Name
@@ -63,6 +48,10 @@ csv_file_name = 'historical_data.csv'
 # Discord Webhook File
 webhook_file_path = 'webhook.txt'
 
+# ITA Matrix URL
+url = 'https://matrix.itasoftware.com'
+
+# Page element information
 departing_from_id = 'cityPair-orig-0'
 
 destination_id = 'cityPair-dest-0'
@@ -81,11 +70,6 @@ num_adults_xPath = '//*[@id="searchPanel-0"]/div/div/div[2]/div[1]/div/div/selec
 
 lwest_price_class = 'KIR33AB-c-a'
 
-# Kayak's url stuff, the first should not change, but the 2nd (kayak_closer) should be copied after the 2nd date in the url.
-#kayak_before_destination = 'https://www.kayak.com/flights/'
-#kayak_closer = '-flexible-calendar-10to14/'+num_adults+'adults?sort=bestflight_a&fs=cfc=0;bfc=0'
-
-
 # Actual page scraping function
 # INPUT: Two string IATA Codes
 # OUTPUT: Integer to represent the price
@@ -96,15 +80,9 @@ def page_scrape():
     # Get the date object of today + days to look at (293 is default)
     future_date = date.today() + timedelta(days=days_to_look_ahead)
 
-    # Add an additional 29 days to mark the end point
-    #future_date_plus_month = future_date + timedelta(days=29)
-
     # Convert the date time objects into strings
     date_start = future_date.strftime("%m/%d/%Y")
-    #date_end = future_date_plus_month = future_date.strftime("%Y-%m-%d")
 
-    # Create the URL we're gonna be looking at, the url that doesn't change and the dates and iata codes
-    url = 'https://matrix.itasoftware.com'
 
     # Create the webdriver and start the chromdriver exe
     option = webdriver.ChromeOptions()
@@ -112,7 +90,6 @@ def page_scrape():
 
     driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
 
     # Open the webpage
     driver.get(url)
@@ -189,27 +166,6 @@ def page_scrape():
     # Grab the element text = Price
     price = lowest_price_element.text
 
-    # Old scraping method
-    '''
-    # Wait for the page to fully populate the results
-    # TO DO: Actually make a holding function to wait until results are fully loaded, python loves to hang on sleep
-    element = WebDriverWait(driver, 90).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "weekRow"))
-    )
-
-    elements = driver.find_elements_by_class_name("weekRow")
-
-    while (len(elements) <= 4):
-        elements = driver.find_elements_by_class_name("weekRow")
-
-
-    # Find the element that has the specific class that represents the lowest price, then grab the price value
-    day_container = driver.find_element_by_class_name(lowest_price_class_string)
-    price_container = day_container.find_element_by_class_name('price')
-    price = price_container.text
-
-    '''
-    sleep(30)
     # Close the driver as we're done here
     driver.close()
 
