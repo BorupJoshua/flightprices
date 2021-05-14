@@ -4,6 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 from datetime import timedelta
 from datetime import date
 from datetime import datetime
@@ -25,6 +26,9 @@ departing_airports = {
     "MCI"
 }
 
+departing_airports_str = "SGF, COU, MCI"
+destination_airports_str = "NRT, HND"
+
 # Lists of airports you would like to depart back home from
 arrival_airports = {
     "NRT",
@@ -41,6 +45,9 @@ days_to_keep_data = 90
 # Frequency per day to run the script
 number_of_iterations = 4
 
+# Number of over night stays, as a string
+nights = "10-14"
+
 # The specific class on the website that represents the lowest fare
 lowest_price_class_string = 'und0'
 
@@ -48,7 +55,7 @@ lowest_price_class_string = 'und0'
 chromedriver_path = 'chromedriver.exe'
 
 # Number of ADULT travelers, AS A STRING!
-num_adults = '8'
+num_adults = 8
 
 # CSV Data File Name
 csv_file_name = 'historical_data.csv'
@@ -56,39 +63,134 @@ csv_file_name = 'historical_data.csv'
 # Discord Webhook File
 webhook_file_path = 'webhook.txt'
 
+departing_from_id = 'cityPair-orig-0'
+
+destination_id = 'cityPair-dest-0'
+
+radio_button_id = 'gwt-uid-168'
+
+calendar_date_id = 'calDate-0'
+
+calendar_stay_id = 'calStay-0'
+
+extra_stops_class = 'KIR33AB-a-G'
+
+search_button_id = 'searchButton-0'
+
+num_adults_xPath = '//*[@id="searchPanel-0"]/div/div/div[2]/div[1]/div/div/select'
+
+lwest_price_class = 'KIR33AB-c-a'
+
 # Kayak's url stuff, the first should not change, but the 2nd (kayak_closer) should be copied after the 2nd date in the url.
-kayak_before_destination = 'https://www.kayak.com/flights/'
-kayak_closer = '-flexible-calendar-10to14/'+num_adults+'adults?sort=bestflight_a&fs=cfc=0;bfc=0'
+#kayak_before_destination = 'https://www.kayak.com/flights/'
+#kayak_closer = '-flexible-calendar-10to14/'+num_adults+'adults?sort=bestflight_a&fs=cfc=0;bfc=0'
 
 
 # Actual page scraping function
 # INPUT: Two string IATA Codes
 # OUTPUT: Integer to represent the price
-def page_scrape(iataFROM, iataTO):
+def page_scrape():
 
-    print('Starting to scrape the results for '+iataFROM+' to '+iataTO)
+    #print('Starting to scrape the results for '+iataFROM+' to '+iataTO)
 
     # Get the date object of today + days to look at (293 is default)
     future_date = date.today() + timedelta(days=days_to_look_ahead)
 
     # Add an additional 29 days to mark the end point
-    future_date_plus_month = future_date + timedelta(days=29)
+    #future_date_plus_month = future_date + timedelta(days=29)
 
     # Convert the date time objects into strings
-    date_start = future_date.strftime("%Y-%m-%d")
-    date_end = future_date_plus_month = future_date.strftime("%Y-%m-%d")
+    date_start = future_date.strftime("%m/%d/%Y")
+    #date_end = future_date_plus_month = future_date.strftime("%Y-%m-%d")
 
     # Create the URL we're gonna be looking at, the url that doesn't change and the dates and iata codes
-    url = ''+kayak_before_destination+iataFROM+'-'+iataTO+'/'+date_start+'/'+date_end+kayak_closer
+    url = 'https://matrix.itasoftware.com'
 
     # Create the webdriver and start the chromdriver exe
-    driver = webdriver.Chrome(executable_path=chromedriver_path)
+    option = webdriver.ChromeOptions()
+    option.add_argument('--disable-blink-features=AutomationControlled')
+
+    driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
 
     # Open the webpage
     driver.get(url)
     
     print('Opening webpage, waiting to load')
 
+    # Get the Dparting From input element
+    departing_from_element = driver.find_element_by_id(departing_from_id)
+
+    # Insert Departing From Airports String
+    departing_from_element.send_keys(departing_airports_str)
+    sleep(2)
+
+    # Get the Destination input element
+    destination_airports_element = driver.find_element_by_id(destination_id)
+
+    # Insert Destination Airports String
+    destination_airports_element.send_keys(destination_airports_str)
+    sleep(2)
+
+    # Get the "See calendar of lowest fares" radio button element
+    radio_button_element = driver.find_element_by_id(radio_button_id)
+
+    # Select the calendar radio button
+    radio_button_element.click()
+    sleep(2)
+
+    # Wait until the departing date input box appears
+
+    calendar_date_element = WebDriverWait(driver, 180).until(
+        EC.presence_of_element_located((By.ID, calendar_date_id))
+    )
+
+    # Insert date string
+    calendar_date_element.send_keys(date_start)
+    sleep(2)
+
+    # Get the Length of Stay input element  
+    length_of_stay_element = driver.find_element_by_id(calendar_stay_id)
+
+    # Insert lenght of stay string
+    length_of_stay_element.send_keys(nights)
+    sleep(2)
+
+    # Get the number of adults drop down element
+    number_of_adults_element = driver.find_element_by_xpath(num_adults_xPath)
+
+    # Select number of adults
+    adult_options = number_of_adults_element.find_elements_by_tag_name("option")
+    adult_options[num_adults-1].click()
+    sleep(2)
+
+    # Get the Extra Stops drop down element
+    # Since there's 3 instances of this drop down class, it's the 3rd one
+    all_drop_downs_with_class = driver.find_elements_by_class_name(extra_stops_class)
+    extra_stops_element = all_drop_downs_with_class[2]
+
+    # Select no limit
+    no_limit_option = extra_stops_element.find_element_by_tag_name("option")
+    no_limit_option.click()
+    sleep(2)
+
+    # Get the Search Button Element
+    search_button_element = driver.find_element_by_id(search_button_id)
+
+    # Select Search button
+    search_button_element.click()
+
+    # Wait until lowest price class element is found
+    lowest_price_element = WebDriverWait(driver, 180).until(
+        EC.presence_of_element_located((By.CLASS_NAME, lwest_price_class))
+    )
+
+    # Grab the element text = Price
+    price = lowest_price_element.text
+
+    # Old scraping method
+    '''
     # Wait for the page to fully populate the results
     # TO DO: Actually make a holding function to wait until results are fully loaded, python loves to hang on sleep
     element = WebDriverWait(driver, 90).until(
@@ -106,6 +208,8 @@ def page_scrape(iataFROM, iataTO):
     price_container = day_container.find_element_by_class_name('price')
     price = price_container.text
 
+    '''
+    sleep(30)
     # Close the driver as we're done here
     driver.close()
 
@@ -181,42 +285,25 @@ def return_lowest_in_timeframe(timeframe, dataset):
 
     new_dataset = clean_stack(timeframe,dataset)
 
-    return min(dataset, key=operator.itemgetter(0))
+    return min(new_dataset, key=operator.itemgetter(0))
 # End return_lowest_in_timeframe
 
 #Main Driver Function
 def main():
-    # ================= Scrape Prep ================= 
-    # Prepare variables before we start scraping data
+
+    # ================= Page Scraping =================
+
+    # Grab the price of the lowest price
+    price = page_scrape()
+
+    # ================= Data Evaluation ================= 
 
     # Load data from file
     data = load_stack()
 
-    # Create variables with dummy values
-    lowest_price = 99999999
-    flight_pair = ''
-
-    # ================= Page Scraping ================= 
-
-    # For every incoming and outgoing pair, scrape the page and compare prices
-    for incoming in arrival_airports:
-        for outgoing in departing_airports:
-
-            print("Testing "+incoming+" and "+outgoing)
-
-            # Scrape the page
-            price = page_scrape(outgoing,incoming)
-
-            # If the price is lower than our current lowest price, that's the new lowest price
-            if (price < lowest_price):
-                lowest_price = price
-                flight_pair = outgoing+'-'+incoming
-    
-    # ================= Data Evaluation ================= 
-
     # Create a new tuple of the lowest price and the flight pair string
-    lowest_tuple_today = (lowest_price,flight_pair)
-    lowest_today_str = str(lowest_tuple_today[0])+" ("+lowest_tuple_today[1]+")"
+    lowest_tuple_today = (price, "SGF/COU/MCI-TYO")
+    lowest_today_str = str(lowest_tuple_today[0])
 
     # Add it to the data stack
     data.append(lowest_tuple_today)
@@ -229,15 +316,15 @@ def main():
 
     # Grab the lowest price overall
     lowest_tuple_overall = return_lowest_in_timeframe(days_to_keep_data,data)
-    lowest_overall_str = str(lowest_tuple_overall[0])+" ("+lowest_tuple_overall[1]+")"
+    lowest_overall_str = str(lowest_tuple_overall[0])
 
     # Grab the lowest monthly
     lowest_tuple_monthly = return_lowest_in_timeframe(30,data)
-    lowest_monthly_str = str(lowest_tuple_monthly[0])+" ("+lowest_tuple_monthly[1]+")"
+    lowest_monthly_str = str(lowest_tuple_monthly[0])
 
     # Grab the lowest weekly
     lowest_tuple_weekly = return_lowest_in_timeframe(7,data)
-    lowest_weekly_str = str(lowest_tuple_weekly[0])+" ("+lowest_tuple_weekly[1]+")"
+    lowest_weekly_str = str(lowest_tuple_weekly[0])
 
     # ================= Discord integration ================= 
     # You can remove this below and swap out a different way to show the results
@@ -263,7 +350,6 @@ def main():
     webhook.send(embed=embed)
 
     #================= ================= ================= 
-
 
 # End Main
 
