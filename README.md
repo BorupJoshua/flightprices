@@ -1,5 +1,5 @@
 # flightprices
-FlightPrices is a Python Script to Pull prices from a service that uses the ITA Matrix system.  It will store the lowest price into a CSV file and keep it for, by default, 90 days, or 90 days * 6 times.
+FlightPrices is a Python Script to Pull prices from THE ITA Matrix system.  It will store the lowest price into a CSV file and keep it for, by default, 90 days, or 90 days * 6 times.
 
 Not included in this repo is the chromedriver, which you can download at https://chromedriver.chromium.org, and then place the .exe file into the same directory as the python script.
 
