@@ -260,8 +260,11 @@ def main():
     # Load data from file
     data = load_stack()
 
+    # Grab Todays date and time, add it onto the tuple so we can keep track of price and the date.
+    right_now = datetime.now().strftime("%a - %b %d, %Y - %I:%M%p")
+
     # Create a new tuple of the lowest price and the flight pair string
-    tuple_to_store = (price, "SGF/COU/MCI-TYO")
+    tuple_to_store = (price, "SGF/COU/MCI-TYO", right_now)
 
     # Add it to the data stack
     data.append(tuple_to_store)
