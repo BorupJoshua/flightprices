@@ -71,7 +71,6 @@ num_adults_xPath = '//*[@id="searchPanel-0"]/div/div/div[2]/div[1]/div/div/selec
 lwest_price_class = 'KIR33AB-c-a'
 
 # Actual page scraping function
-# INPUT: Two string IATA Codes
 # OUTPUT: Integer to represent the price
 def page_scrape():
 
@@ -99,6 +98,8 @@ def page_scrape():
     # Get the Dparting From input element
     departing_from_element = driver.find_element_by_id(departing_from_id)
 
+    print("Inputting Data")
+
     # Insert Departing From Airports String
     departing_from_element.send_keys(departing_airports_str)
     sleep(2)
@@ -112,6 +113,8 @@ def page_scrape():
 
     # Get the "See calendar of lowest fares" radio button element
     radio_button_element = driver.find_element_by_id(radio_button_id)
+
+    print("Clicking the radio button for calendar date")
 
     # Select the calendar radio button
     radio_button_element.click()
@@ -155,6 +158,8 @@ def page_scrape():
     # Get the Search Button Element
     search_button_element = driver.find_element_by_id(search_button_id)
 
+    print("Searching for prices now")
+
     # Select Search button
     search_button_element.click()
 
@@ -166,14 +171,16 @@ def page_scrape():
     # Grab the element text = Price
     price = lowest_price_element.text
 
+    print(price)
+
+    sleep(60)
+
     # Close the driver as we're done here
     driver.close()
 
     # Filter out non numeric numbers from the container text
     numeric_filter = filter(str.isdigit, price)
     price_cleaned = int("".join(numeric_filter))
-
-    print(price_cleaned)
 
     # return the price
     return price_cleaned
@@ -248,27 +255,30 @@ def return_lowest_in_timeframe(timeframe, dataset):
 def main():
 
     # ================= Page Scraping =================
+    print("Running page scraping...")
 
     # Grab the price of the lowest price
     price = page_scrape()
 
     # ================= Data Evaluation ================= 
+    print("Saving price...")
 
     # Load data from file
     data = load_stack()
 
     # Create a new tuple of the lowest price and the flight pair string
-    lowest_tuple_today = (price, "SGF/COU/MCI-TYO")
-    lowest_today_str = str(lowest_tuple_today[0])
+    tuple_to_store = (price, "SGF/COU/MCI-TYO")
 
     # Add it to the data stack
-    data.append(lowest_tuple_today)
+    data.append(tuple_to_store)
 
     # Create new data stack that adheres how many data entires we want
     new_data = clean_stack(days_to_keep_data,data)
 
     # Save the new stack to storage
     save_stack(new_data)
+
+    print("Evaluating prices...")
 
     # Grab the lowest price overall
     lowest_tuple_overall = return_lowest_in_timeframe(days_to_keep_data,data)
@@ -282,9 +292,15 @@ def main():
     lowest_tuple_weekly = return_lowest_in_timeframe(7,data)
     lowest_weekly_str = str(lowest_tuple_weekly[0])
 
+    # Grab the lowest today
+    lowest_tuple_daily = return_lowest_in_timeframe(1,data)
+    lowest_daily_str = str(lowest_tuple_daily[0])
+
+
     # ================= Discord integration ================= 
     # You can remove this below and swap out a different way to show the results
-    # For my case its through my personal Discord server. 
+    # For my case its through a personal Discord server. 
+    print("Displaying results...")
 
     # Open webhook file (secret!)
     webhook_secret_file = open(webhook_file_path, 'r')
@@ -298,13 +314,14 @@ def main():
     # Create the embeded object to send to discord
     embed=discord.Embed(title="Flight Prices Update", color=0xff0033)
     embed.set_author(name="FLIGHT WATCH DOG", url="https://matrix.itasoftware.com", icon_url="https://w7.pngwing.com/pngs/205/97/png-transparent-airplane-icon-a5-takeoff-computer-icons-flight-airplane.png")
-    embed.add_field(name="Lowest Price Today", value=lowest_today_str, inline=False)
+    embed.add_field(name="Lowest Price Today", value=lowest_daily_str, inline=False)
     embed.add_field(name="Lowest Price Weekly", value=lowest_weekly_str, inline=True)
     embed.add_field(name="Lowest Price Monthly", value=lowest_monthly_str, inline=True)
     embed.add_field(name="Lowest Price Overall", value=lowest_overall_str, inline=True)
     embed.set_footer(text="Updated: "+datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
     webhook.send(embed=embed)
 
+    print("Program finished")
     #================= ================= ================= 
 
 # End Main
