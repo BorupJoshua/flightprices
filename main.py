@@ -74,19 +74,15 @@ lwest_price_class = 'KIR33AB-c-a'
 # OUTPUT: Integer to represent the price
 def page_scrape():
 
-    #print('Starting to scrape the results for '+iataFROM+' to '+iataTO)
-
     # Get the date object of today + days to look at (293 is default)
     future_date = date.today() + timedelta(days=days_to_look_ahead)
 
     # Convert the date time objects into strings
     date_start = future_date.strftime("%m/%d/%Y")
 
-
     # Create the webdriver and start the chromdriver exe
     option = webdriver.ChromeOptions()
     option.add_argument('--disable-blink-features=AutomationControlled')
-
     driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
@@ -172,8 +168,6 @@ def page_scrape():
     price = lowest_price_element.text
 
     print(price)
-
-    sleep(60)
 
     # Close the driver as we're done here
     driver.close()
